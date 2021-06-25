@@ -7,45 +7,56 @@
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+static Display *dpy;
+
+void
+configurerequest(XEvent *e)
+{
+    XConfigureRequestEvent *ev = &e->xconfigurerequest;
+    XWindowChanges wc;
+
+    wc.x = ev->x;
+    wc.y = ev->y;
+    wc.width = ev->width;
+    wc.height = ev->height;
+    wc.border_width = 3;
+    wc.sibling = ev->above;
+    wc.stack_mode = ev->detail;
+    
+    XConfigureWindow(dpy, ev->window, ev->value_mask, &wc);
+}
+
+void
+maprequest(XEvent *e)
+{
+    XMapRequestEvent *ev = &e->xmaprequest;
+    unsigned long bc = 0xff0000;
+
+    XSetWindowBorder(dpy, ev->window, bc);
+    XMapWindow(dpy, ev->window);
+}
+
 int main(void)
 {
-    Display * dpy;
     XWindowAttributes attr;
     XButtonEvent start;
     XEvent ev;
 
     if(!(dpy = XOpenDisplay(0x0))) return 1;
 
-    XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("F1")), Mod1Mask,
-            DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
-    XGrabButton(dpy, 1, Mod1Mask, DefaultRootWindow(dpy), True,
-            ButtonPressMask|ButtonReleaseMask|PointerMotionMask, GrabModeAsync, GrabModeAsync, None, None);
-    XGrabButton(dpy, 3, Mod1Mask, DefaultRootWindow(dpy), True,
-            ButtonPressMask|ButtonReleaseMask|PointerMotionMask, GrabModeAsync, GrabModeAsync, None, None);
-
-    start.subwindow = None;
+    XSync(dpy, False);
     for(;;)
     {
         XNextEvent(dpy, &ev);
-        if(ev.type == KeyPress && ev.xkey.subwindow != None)
-            XRaiseWindow(dpy, ev.xkey.subwindow);
-        else if(ev.type == ButtonPress && ev.xbutton.subwindow != None)
-        {
-            XGetWindowAttributes(dpy, ev.xbutton.subwindow, &attr);
-            start = ev.xbutton;
+        switch (ev.type) {
+            case ConfigureRequest:
+                configurerequest(&ev);
+                break;
+            case MapRequest:
+                maprequest(&ev);
+                break;
+            default:
+                break;
         }
-        else if(ev.type == MotionNotify && start.subwindow != None)
-        {
-            int xdiff = ev.xbutton.x_root - start.x_root;
-            int ydiff = ev.xbutton.y_root - start.y_root;
-            XMoveResizeWindow(dpy, start.subwindow,
-                attr.x + (start.button==1 ? xdiff : 0),
-                attr.y + (start.button==1 ? ydiff : 0),
-                MAX(1, attr.width + (start.button==3 ? xdiff : 0)),
-                MAX(1, attr.height + (start.button==3 ? ydiff : 0)));
-        }
-        else if(ev.type == ButtonRelease)
-            start.subwindow = None;
     }
 }
-

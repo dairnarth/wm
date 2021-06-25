@@ -10,6 +10,7 @@
 int main(void)
 {
     Display * dpy;
+    Monitor *mons, *selmon;
     XWindowAttributes attr;
     XButtonEvent start;
     XEvent ev;
